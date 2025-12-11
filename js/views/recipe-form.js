@@ -6,6 +6,7 @@
 import { store } from '../store.js';
 import { showLoading, hideLoading, showSuccess, showError } from '../utils/format.js';
 import { getCategories, normalizeItemName } from '../utils/units.js';
+import { importRecipeFromUrl } from '../utils/recipe-scraper.js';
 
 export class RecipeFormView {
     constructor(params) {
@@ -55,6 +56,30 @@ export class RecipeFormView {
 
                 <!-- Form -->
                 <form id="recipe-form" class="space-y-6">
+                    ${!this.isEditing ? `
+                    <!-- Import from URL -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">Import from URL</h2>
+                        <p class="text-sm text-gray-600 mb-4">Paste a recipe URL to automatically import ingredients and instructions</p>
+
+                        <div class="flex gap-3">
+                            <input
+                                type="url"
+                                id="recipe-url"
+                                placeholder="https://example.com/recipe"
+                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                            <button
+                                type="button"
+                                id="import-url-btn"
+                                class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                            >
+                                Import Recipe
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+
                     <!-- Basic Info -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
@@ -246,6 +271,12 @@ export class RecipeFormView {
     setupEventListeners() {
         if (!this.container) return;
 
+        // Import from URL button
+        const importButton = this.container.querySelector('#import-url-btn');
+        if (importButton) {
+            importButton.addEventListener('click', () => this.handleImportUrl());
+        }
+
         // Add ingredient button
         const addButton = this.container.querySelector('#add-ingredient');
         if (addButton) {
@@ -293,6 +324,46 @@ export class RecipeFormView {
         const listContainer = this.container?.querySelector('#ingredients-list');
         if (listContainer) {
             listContainer.innerHTML = this.renderIngredients();
+        }
+    }
+
+    async handleImportUrl() {
+        const urlInput = this.container.querySelector('#recipe-url');
+        const url = urlInput?.value.trim();
+
+        if (!url) {
+            showError('Please enter a recipe URL');
+            return;
+        }
+
+        try {
+            showLoading();
+            console.log('Importing recipe from:', url);
+
+            // Import the recipe
+            const importedRecipe = await importRecipeFromUrl(url);
+
+            // Populate form fields
+            document.getElementById('name').value = importedRecipe.name || '';
+            document.getElementById('cook_time_mins').value = importedRecipe.cook_time_mins || '';
+            document.getElementById('servings').value = importedRecipe.servings || 4;
+            document.getElementById('source').value = importedRecipe.source || url;
+            document.getElementById('instructions').value = importedRecipe.instructions || '';
+
+            // Set ingredients
+            this.ingredients = importedRecipe.ingredients || [];
+            this.updateIngredientsList();
+
+            hideLoading();
+            showSuccess(`Recipe imported! Found ${this.ingredients.length} ingredients`);
+
+            // Clear the URL input
+            urlInput.value = '';
+
+        } catch (error) {
+            console.error('Import error:', error);
+            hideLoading();
+            showError(error.message || 'Failed to import recipe. The site may not be supported or may block scraping.');
         }
     }
 
