@@ -69,8 +69,12 @@ class App {
 
         // Set up sign-in button
         document.getElementById('signin-button').addEventListener('click', async () => {
+            console.log('Sign-in button clicked');
             const clientId = document.getElementById('client-id').value.trim();
             const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
+
+            console.log('Client ID:', clientId ? 'provided' : 'missing');
+            console.log('Spreadsheet ID:', spreadsheetId ? 'provided' : 'missing');
 
             if (!clientId || !spreadsheetId) {
                 showError('Please enter both Client ID and Spreadsheet ID');
@@ -78,15 +82,20 @@ class App {
             }
 
             try {
+                console.log('Starting authentication initialization...');
                 showLoading();
                 const initialized = await auth.init(clientId, spreadsheetId);
 
+                console.log('Authentication initialized:', initialized);
+
                 if (initialized) {
+                    console.log('Requesting access token...');
                     auth.requestAccessToken();
                 } else {
                     showError('Failed to initialize authentication');
                 }
             } catch (error) {
+                console.error('Authentication error:', error);
                 showError('Authentication error: ' + error.message);
             } finally {
                 hideLoading();

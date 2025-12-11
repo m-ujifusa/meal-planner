@@ -19,6 +19,7 @@ class Auth {
      * Initialize Google API and Identity Services
      */
     async init(clientId, spreadsheetId) {
+        console.log('Auth.init() called');
         this.clientId = clientId;
         this.spreadsheetId = spreadsheetId;
 
@@ -26,30 +27,54 @@ class Auth {
         localStorage.setItem('clientId', clientId);
         localStorage.setItem('spreadsheetId', spreadsheetId);
 
+        console.log('Loading Google APIs...');
         // Load gapi
         await this.loadGapi();
         await this.loadGis();
 
-        return this.gapiInited && this.gisInited;
+        const success = this.gapiInited && this.gisInited;
+        console.log('Auth initialization complete. Success:', success);
+        return success;
     }
 
     /**
      * Load Google API client
      */
     async loadGapi() {
-        return new Promise((resolve) => {
-            if (typeof gapi !== 'undefined') {
-                gapi.load('client', async () => {
-                    await gapi.client.init({
-                        discoveryDocs: [DISCOVERY_DOC],
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+
+            const tryLoad = () => {
+                if (typeof gapi !== 'undefined') {
+                    console.log('gapi loaded, initializing client...');
+                    gapi.load('client', async () => {
+                        try {
+                            await gapi.client.init({
+                                discoveryDocs: [DISCOVERY_DOC],
+                            });
+                            this.gapiInited = true;
+                            console.log('gapi client initialized');
+                            resolve();
+                        } catch (error) {
+                            console.error('Error initializing gapi client:', error);
+                            reject(error);
+                        }
                     });
-                    this.gapiInited = true;
-                    resolve();
-                });
-            } else {
-                // Retry after a short delay
-                setTimeout(() => this.loadGapi().then(resolve), 100);
-            }
+                } else {
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        const error = new Error('Google API library failed to load. Please refresh and try again.');
+                        console.error(error);
+                        reject(error);
+                    } else {
+                        // Retry after a short delay
+                        setTimeout(tryLoad, 100);
+                    }
+                }
+            };
+
+            tryLoad();
         });
     }
 
@@ -57,28 +82,49 @@ class Auth {
      * Load Google Identity Services
      */
     async loadGis() {
-        return new Promise((resolve) => {
-            if (typeof google !== 'undefined' && google.accounts) {
-                this.tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: this.clientId,
-                    scope: SCOPES,
-                    callback: (response) => {
-                        if (response.error) {
-                            console.error('Token error:', response.error);
-                            this.handleAuthError(response.error);
-                            return;
-                        }
-                        this.accessToken = response.access_token;
-                        sessionStorage.setItem('access_token', this.accessToken);
-                        this.handleAuthSuccess();
-                    },
-                });
-                this.gisInited = true;
-                resolve();
-            } else {
-                // Retry after a short delay
-                setTimeout(() => this.loadGis().then(resolve), 100);
-            }
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+
+            const tryLoad = () => {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    console.log('Google Identity Services loaded, initializing token client...');
+                    try {
+                        this.tokenClient = google.accounts.oauth2.initTokenClient({
+                            client_id: this.clientId,
+                            scope: SCOPES,
+                            callback: (response) => {
+                                if (response.error) {
+                                    console.error('Token error:', response.error);
+                                    this.handleAuthError(response.error);
+                                    return;
+                                }
+                                this.accessToken = response.access_token;
+                                sessionStorage.setItem('access_token', this.accessToken);
+                                this.handleAuthSuccess();
+                            },
+                        });
+                        this.gisInited = true;
+                        console.log('Google Identity Services initialized');
+                        resolve();
+                    } catch (error) {
+                        console.error('Error initializing Google Identity Services:', error);
+                        reject(error);
+                    }
+                } else {
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        const error = new Error('Google Identity Services failed to load. Please refresh and try again.');
+                        console.error(error);
+                        reject(error);
+                    } else {
+                        // Retry after a short delay
+                        setTimeout(tryLoad, 100);
+                    }
+                }
+            };
+
+            tryLoad();
         });
     }
 
@@ -86,6 +132,8 @@ class Auth {
      * Request access token
      */
     requestAccessToken() {
+        console.log('requestAccessToken() called');
+
         if (!this.tokenClient) {
             console.error('Token client not initialized');
             return;
@@ -94,18 +142,22 @@ class Auth {
         // Check if we already have a valid token in session storage
         const storedToken = sessionStorage.getItem('access_token');
         if (storedToken) {
+            console.log('Found stored token, verifying...');
             this.accessToken = storedToken;
             gapi.client.setToken({ access_token: storedToken });
             // Verify token is still valid
             this.verifyToken().then(valid => {
                 if (valid) {
+                    console.log('Stored token is valid');
                     this.handleAuthSuccess();
                 } else {
+                    console.log('Stored token expired, requesting new one');
                     // Token expired, request new one
                     this.tokenClient.requestAccessToken({ prompt: '' });
                 }
             });
         } else {
+            console.log('No stored token, requesting new one');
             // Request new token
             this.tokenClient.requestAccessToken({ prompt: 'consent' });
         }
