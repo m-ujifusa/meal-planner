@@ -1,0 +1,253 @@
+/**
+ * Custom styles and print stylesheet
+ */
+
+/* General Styles */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Hide elements on screen that should only show in print */
+.print-only {
+    display: none;
+}
+
+/* Print Styles */
+@media print {
+    /* Hide everything that shouldn't print */
+    .no-print,
+    nav,
+    header,
+    button,
+    .nav-link,
+    input[type="checkbox"]:not(.print-checkbox) {
+        display: none !important;
+    }
+
+    /* Show print-only elements */
+    .print-only {
+        display: block !important;
+    }
+
+    /* Reset page margins and background */
+    body {
+        background: white;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Adjust main container for print */
+    #app,
+    #content {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Print title */
+    .print-title {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-align: center;
+    }
+
+    .print-subtitle {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 24px;
+        text-align: center;
+    }
+
+    /* Shopping list sections */
+    .print-section {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 0;
+    }
+
+    /* Print checkboxes */
+    .print-checkbox {
+        display: inline-block !important;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #333;
+        border-radius: 4px;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    /* Shopping list items */
+    .print-item {
+        display: flex !important;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .print-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Make text black for better printing */
+    * {
+        color: black !important;
+    }
+
+    /* Remove shadows for cleaner print */
+    * {
+        box-shadow: none !important;
+    }
+
+    /* Ensure good contrast */
+    h1, h2, h3, h4, h5, h6 {
+        color: black !important;
+    }
+
+    /* Page breaks */
+    .page-break-before {
+        page-break-before: always;
+    }
+
+    .page-break-after {
+        page-break-after: always;
+    }
+
+    /* Optimize for single page */
+    @page {
+        margin: 0.5in;
+    }
+
+    /* Remove desktop margin offset */
+    .md\:ml-64 {
+        margin-left: 0 !important;
+    }
+
+    /* Ensure proper spacing */
+    .print-section + .print-section {
+        margin-top: 16px;
+    }
+}
+
+/* Custom Scrollbar (WebKit browsers) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Loading Animation Enhancement */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Toast Animations */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Focus styles for accessibility */
+*:focus {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+/* Improve mobile tap targets */
+@media (max-width: 640px) {
+    button,
+    a,
+    input[type="checkbox"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Smooth transitions */
+a,
+button {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Prevent text selection on buttons */
+button {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Custom input styles */
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Disabled state */
+button:disabled,
+input:disabled,
+select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Active nav link highlight */
+.nav-link.active {
+    color: #3B82F6;
+    background-color: #EFF6FF;
+}
+
+/* Card hover effect */
+.hover\:shadow-lg:hover {
+    transform: translateY(-2px);
+    transition: all 0.2s ease-in-out;
+}

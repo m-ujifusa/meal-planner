@@ -1,0 +1,342 @@
+Weekly Recipe & Shopping List Application - Design Document
+Project Overview
+A mobile-first, client-side web application hosted on GitHub Pages that helps a family of three (2 adults + 1 toddler) manage weekly dinner planning, recipes, kitchen inventory, and budgeted shopping lists. Data syncs across devices via Google Sheets.
+
+Core Constraints
+
+Zero infrastructure: Google Sheets as database
+Free hosting: GitHub Pages static site
+No backend: Google Sheets API called directly from browser
+Cross-device sync: Same Google Sheet accessible from any device
+Print-friendly: Shopping lists optimized for printing
+
+
+Data Architecture: Google Sheets
+Single Google Spreadsheet with the following tabs:
+Tab: Recipes
+ColumnTypeExampleNotesidstringr_001Auto-generatednamestringChicken Stir Frycook_time_minsnumber30servingsnumber4Base recipe yieldinstructionsstring(multiline text)sourcestringMom's cookbookOptional
+Tab: Ingredients
+ColumnTypeExampleNotesrecipe_idstringr_001Foreign keyitemstringchicken breastLowercase, normalizedquantitynumber1.5For base servingsunitstringlbStandardized unitscategorystringproteinStore section
+Categories (store sections):
+
+produce
+protein (meat/seafood)
+dairy
+pantry
+frozen
+bakery
+other
+
+Tab: Inventory
+ColumnTypeExampleNotesitemstringolive oilNormalized namestatusstringhavehave / low / outcategorystringpantryStore sectiontypical_pricenumber8.99Optional, for budgeting
+Tab: MealPlan
+ColumnTypeExampleNotesweek_startstring2024-01-15Monday of week (ISO format)daystringmondayLowercase day namerecipe_idstringr_001Foreign key
+Note: Servings always calculated as 2.5x (2 adults + toddler). No per-meal override needed.
+Tab: ShoppingList
+ColumnTypeExampleNotesweek_startstring2024-01-15Links to meal planitemstringchicken breastquantitynumber3.75Aggregated, scaledunitstringlbcategorystringproteinFor groupingestimated_pricenumber12.50From typical_pricecheckedbooleanFALSEIn-store checkboxmanualbooleanFALSETRUE if manually added
+Tab: PriceHistory
+ColumnTypeExampleNotesdatestring2024-01-20ISO formatitemstringchicken breastpricenumber11.99Actual paidstorestringCostcoOptional
+
+Application Screens
+1. Home Dashboard
+Purpose: Week-at-a-glance, primary navigation
+Elements:
+
+Current week label (e.g., "Week of Jan 15")
+7-day dinner grid showing recipe names (or "Not planned")
+Summary card: X dinners planned, Y shopping items, ~$Z estimated
+Bottom navigation: Home, Recipes, Inventory, Shopping
+
+2. Recipes
+Purpose: Browse and manage recipe collection
+List View:
+
+Search box (filters by name, live)
+Recipe cards showing: name, cook time
+Tap card → Recipe Detail
+
+Recipe Detail View:
+
+Name, cook time, source
+Ingredients list with quantities
+Instructions (scrollable)
+Actions: Edit, Delete, "Add to Week" button
+
+Add/Edit Recipe Form:
+
+Name (required)
+Cook time in minutes (required)
+Source (optional)
+Instructions (textarea)
+Ingredients section:
+
+List of current ingredients
+Add ingredient row: item, quantity, unit, category (dropdown)
+Remove ingredient (X button)
+
+
+Save / Cancel buttons
+
+3. Meal Planner
+Purpose: Assign recipes to days of the week
+Week View:
+
+Week selector (prev/next arrows, current week highlighted)
+7 rows (Monday → Sunday)
+Each row: Day name | Recipe dropdown/selector | Cook time | Clear (X)
+Recipe selector: searchable dropdown of all recipes
+"Generate Shopping List" button (prominent)
+"Clear Week" button (with confirmation)
+
+4. Kitchen Inventory
+Purpose: Track pantry staples to exclude from shopping list
+List View:
+
+Grouped by category (collapsible sections)
+Each item row: Name | Status toggle | Price
+Status toggle cycles: have → low → out → have
+Items marked "low" or "out" appear on shopping list
+Add item button → inline form or modal
+
+Add/Edit Item:
+
+Item name
+Category (dropdown)
+Status (dropdown)
+Typical price (optional)
+
+5. Shopping List
+Purpose: Generated list for grocery shopping
+Header:
+
+Week label
+Estimated total: $XX.XX
+Print button
+Regenerate button (recalculates from meal plan)
+
+List:
+
+Grouped by category (produce, protein, dairy, etc.)
+Each item row: Checkbox | Item name | Quantity + unit | Est. price
+Checked items strike through, move to bottom of category
+Manual add: floating action button → item, quantity, unit, category, price
+
+After Shopping:
+
+"Log Actual Prices" button → editable price fields → saves to PriceHistory
+
+Print View (CSS @media print):
+
+No navigation, no buttons
+Clean category headers
+Large checkboxes (empty squares)
+Item | Qty | Est. Price columns
+Total at bottom
+Single page optimized
+
+6. Budget Summary
+Purpose: Simple spending visibility
+Elements:
+
+This week: Estimated $XX
+Last week: Actual $XX (from PriceHistory)
+Simple bar or comparison
+Link to full price history (optional, could be table)
+
+
+Serving Size Logic
+Fixed multiplier: 2.5x
+
+All recipes store base servings
+When generating shopping list:
+
+needed_quantity = (ingredient_quantity / recipe_servings) * 2.5
+
+
+Quantities rounded to practical amounts (e.g., 1.25 lb → 1.25, not 1.247)
+
+
+Shopping List Generation Logic
+1. Get all recipes in current week's MealPlan
+2. For each recipe:
+   a. Fetch ingredients
+   b. Scale quantities by (2.5 / recipe.servings)
+3. Aggregate ingredients by normalized item name
+   - Sum quantities (must have same unit)
+   - Keep category from first occurrence
+4. Fetch Inventory
+5. For each aggregated ingredient:
+   a. If inventory.status == "have" → exclude
+   b. If inventory.status == "low" → include (family wants to restock)
+   c. If not in inventory → include
+6. Look up typical_price from Inventory for estimates
+7. Write to ShoppingList tab (clear previous week first)
+
+Technical Implementation
+Stack
+ComponentChoiceFrameworkVanilla JavaScript (ES modules)StylingTailwind CSS via CDNIconsHeroicons or similar (CDN)DataGoogle Sheets API v4AuthGoogle Identity Services (OAuth 2.0)PrintCSS @media printHostingGitHub Pages
+Authentication Flow
+
+User clicks "Sign in with Google"
+Google Identity Services popup
+User grants Sheets read/write scope
+App receives access token
+Token stored in sessionStorage (cleared on tab close)
+Token refreshed as needed
+
+Required OAuth Scope: https://www.googleapis.com/auth/spreadsheets
+Google Sheets API Operations
+OperationAPI MethodRead tab dataspreadsheets.values.getWrite/update rowsspreadsheets.values.updateAppend rowsspreadsheets.values.appendClear rangespreadsheets.values.clearBatch operationsspreadsheets.values.batchUpdate
+File Structure
+/
+├── index.html                  # SPA shell
+├── manifest.json               # PWA manifest (optional)
+├── css/
+│   ├── styles.css              # Custom styles + print
+│   └── tailwind.min.css        # Or CDN link in HTML
+├── js/
+│   ├── main.js                 # App initialization, routing
+│   ├── auth.js                 # Google OAuth handling
+│   ├── sheets.js               # Sheets API wrapper
+│   ├── store.js                # Local state management
+│   ├── views/
+│   │   ├── home.js
+│   │   ├── recipes.js
+│   │   ├── recipe-detail.js
+│   │   ├── recipe-form.js
+│   │   ├── planner.js
+│   │   ├── inventory.js
+│   │   ├── shopping.js
+│   │   └── budget.js
+│   └── utils/
+│       ├── date.js             # Week calculations
+│       ├── units.js            # Unit normalization
+│       └── format.js           # Display formatting
+├── templates/
+│   └── meal-planner-template.xlsx   # User copies this
+├── docs/
+│   └── setup-guide.md          # Setup instructions with screenshots
+└── README.md
+Routing
+Simple hash-based routing:
+
+#/ → Home
+#/recipes → Recipe list
+#/recipes/new → Add recipe
+#/recipes/:id → Recipe detail
+#/recipes/:id/edit → Edit recipe
+#/planner → Meal planner
+#/inventory → Kitchen inventory
+#/shopping → Shopping list
+#/budget → Budget summary
+
+Mobile-First Responsive Breakpoints
+
+Mobile (default): < 640px — single column, bottom nav
+Tablet: 640px+ — wider cards, side margins
+Desktop: 1024px+ — sidebar nav, multi-column layouts
+
+
+User Setup Instructions (Summary)
+Full guide with screenshots to be created in /docs/setup-guide.md
+
+Copy the template spreadsheet
+
+Open provided template link
+File → Make a copy to your Drive
+
+
+Create Google Cloud project
+
+Go to console.cloud.google.com
+Create new project
+Enable Google Sheets API
+
+
+Create OAuth credentials
+
+APIs & Services → Credentials
+Create OAuth 2.0 Client ID (Web application)
+Add authorized JavaScript origins (your GitHub Pages URL)
+Copy Client ID
+
+
+Configure the app
+
+Open the app
+Enter your Spreadsheet ID (from sheet URL)
+Enter your OAuth Client ID
+Click "Connect to Google"
+Authorize access
+
+
+Start using
+
+Add recipes
+Plan your week
+Generate shopping list
+
+
+
+
+Implementation Phases
+Phase 1: Foundation (MVP)
+
+ Project scaffolding (HTML shell, CSS, JS structure)
+ Google OAuth integration
+ Sheets API wrapper (read/write operations)
+ Create Google Sheet template
+ Basic recipe list view (read from sheet)
+ Add recipe form (write to sheet)
+ Recipe detail view
+
+Phase 2: Planning & Shopping
+
+ Meal planner week view
+ Assign recipes to days
+ Shopping list generation logic
+ Shopping list display with checkboxes
+ Print stylesheet for shopping list
+
+Phase 3: Inventory & Budget
+
+ Inventory management screen
+ Inventory integration with shopping list generation
+ Price tracking (typical prices)
+ Budget summary view
+ Log actual prices after shopping
+
+Phase 4: Polish
+
+ Mobile UI refinements
+ Loading states and error handling
+ Offline indicator
+ Setup documentation with screenshots
+ README for GitHub repo
+
+
+Out of Scope (Future Considerations)
+
+Recipe import from URLs
+Meal suggestions based on inventory
+Multiple stores with different pricing
+Nutritional information
+Recipe images
+Sharing meal plans with others
+Recipe tags/categories
+
+
+Open Questions Resolved
+QuestionDecisionToddler mealsSame as adults, portion included in 2.5x multiplierMeals to planDinner onlyAuth approachFull OAuth (not CSV/Forms)Store sectionsproduce, protein, dairy, pantry, frozen, bakery, otherRecipe importDeferred to future
+
+Ready for Claude Code
+This document provides:
+
+Complete data schema
+All screens and their elements
+Technical stack decisions
+File structure
+Implementation phases with checkboxes
+Logic specifications (serving scaling, shopping list generation)
+
+To begin: Start with Phase 1, initializing the project structure and implementing Google Sheets authentication.

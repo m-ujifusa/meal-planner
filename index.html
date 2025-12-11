@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Meal Planner</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Loading Indicator -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-4 text-gray-700">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Authentication Screen -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Weekly Meal Planner</h1>
+            <p class="text-gray-600 mb-8">Plan dinners, manage recipes, and generate shopping lists for your family</p>
+
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label for="spreadsheet-id" class="block text-sm font-medium text-gray-700 mb-2">Google Spreadsheet ID</label>
+                    <input
+                        type="text"
+                        id="spreadsheet-id"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter your spreadsheet ID"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">Found in your sheet URL after /d/</p>
+                </div>
+
+                <div>
+                    <label for="client-id" class="block text-sm font-medium text-gray-700 mb-2">Google OAuth Client ID</label>
+                    <input
+                        type="text"
+                        id="client-id"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter your OAuth client ID"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">From Google Cloud Console</p>
+                </div>
+            </div>
+
+            <button
+                id="signin-button"
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+                Connect to Google
+            </button>
+
+            <div class="mt-6 text-sm text-gray-600">
+                <p class="mb-2">Need help setting up?</p>
+                <a href="docs/setup-guide.md" class="text-blue-600 hover:underline">View Setup Guide</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden flex flex-col min-h-screen">
+        <!-- Top Bar (Desktop) -->
+        <header class="bg-white shadow-sm border-b border-gray-200 hidden md:block">
+            <div class="max-w-7xl mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold text-gray-900">Weekly Meal Planner</h1>
+                    <button id="signout-button" class="text-sm text-gray-600 hover:text-gray-900">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="content" class="flex-1 overflow-y-auto pb-20 md:pb-4">
+            <!-- Views will be rendered here -->
+        </main>
+
+        <!-- Bottom Navigation (Mobile) -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
+            <div class="flex justify-around">
+                <a href="#/" class="flex-1 flex flex-col items-center py-3 text-gray-600 hover:text-blue-600 nav-link" data-route="/">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span class="text-xs mt-1">Home</span>
+                </a>
+                <a href="#/recipes" class="flex-1 flex flex-col items-center py-3 text-gray-600 hover:text-blue-600 nav-link" data-route="/recipes">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                    <span class="text-xs mt-1">Recipes</span>
+                </a>
+                <a href="#/inventory" class="flex-1 flex flex-col items-center py-3 text-gray-600 hover:text-blue-600 nav-link" data-route="/inventory">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                    <span class="text-xs mt-1">Inventory</span>
+                </a>
+                <a href="#/shopping" class="flex-1 flex flex-col items-center py-3 text-gray-600 hover:text-blue-600 nav-link" data-route="/shopping">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span class="text-xs mt-1">Shopping</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Sidebar Navigation (Desktop) -->
+        <nav class="hidden md:block fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 overflow-y-auto">
+            <div class="p-4">
+                <a href="#/" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 nav-link" data-route="/">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    Home
+                </a>
+                <a href="#/recipes" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 nav-link" data-route="/recipes">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                    Recipes
+                </a>
+                <a href="#/planner" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 nav-link" data-route="/planner">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Meal Planner
+                </a>
+                <a href="#/inventory" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 nav-link" data-route="/inventory">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                    Kitchen Inventory
+                </a>
+                <a href="#/shopping" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 nav-link" data-route="/shopping">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    Shopping List
+                </a>
+                <a href="#/budget" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 nav-link" data-route="/budget">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Budget
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
