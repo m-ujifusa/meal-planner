@@ -5,9 +5,8 @@
 
 import { store } from '../store.js';
 import { getWeekStart, getWeekLabel, getPreviousWeek, getNextWeek, isCurrentWeek } from '../utils/date.js';
-import { formatCurrency, formatQuantity } from '../utils/format.js';
-import { getCategoryColor } from '../utils/units.js';
-import { showLoading, hideLoading, showSuccess, showError } from '../utils/format.js';
+import { formatCurrency, showLoading, hideLoading, showSuccess, showError } from '../utils/format.js';
+import { getCategoryColor, formatQuantity } from '../utils/units.js';
 
 export class ShoppingView {
     constructor(params) {
