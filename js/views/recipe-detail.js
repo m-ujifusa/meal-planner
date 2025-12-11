@@ -68,7 +68,16 @@ export class RecipeDetailView {
                                 </div>
 
                                 ${recipe.source ? `
-                                    <p class="text-sm text-gray-500">Source: ${recipe.source}</p>
+                                    ${recipe.source.startsWith('http') ? `
+                                        <a href="${recipe.source}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                            View Original Recipe
+                                        </a>
+                                    ` : `
+                                        <p class="text-sm text-gray-500">Source: ${recipe.source}</p>
+                                    `}
                                 ` : ''}
                             </div>
 
@@ -110,7 +119,17 @@ export class RecipeDetailView {
                 <!-- Instructions -->
                 <div class="bg-white rounded-lg shadow mb-6">
                     <div class="p-6">
-                        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Instructions</h2>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-900">Instructions</h2>
+                            ${recipe.source && recipe.source.startsWith('http') ? `
+                                <a href="${recipe.source}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                    </svg>
+                                    View Original
+                                </a>
+                            ` : ''}
+                        </div>
 
                         ${recipe.instructions ? `
                             <div class="text-gray-700 whitespace-pre-wrap">${nl2br(recipe.instructions)}</div>

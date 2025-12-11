@@ -355,10 +355,18 @@ export class RecipeFormView {
             this.updateIngredientsList();
 
             hideLoading();
-            showSuccess(`Recipe imported! Found ${this.ingredients.length} ingredients`);
+
+            if (this.ingredients.length === 0) {
+                showError(`Recipe "${importedRecipe.name}" imported but no ingredients found. You'll need to add them manually.`);
+            } else {
+                showSuccess(`Recipe imported! Found ${this.ingredients.length} ingredients`);
+            }
 
             // Clear the URL input
             urlInput.value = '';
+
+            // Scroll to the form so user can see the populated data
+            document.getElementById('name').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         } catch (error) {
             console.error('Import error:', error);

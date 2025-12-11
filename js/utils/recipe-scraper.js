@@ -13,25 +13,35 @@ export async function importRecipeFromUrl(url) {
         console.log('Fetching recipe from:', url);
 
         // Use CORS proxy to bypass browser restrictions
-        // Using AllOrigins as a free CORS proxy service
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        // Using corsproxy.io as a free CORS proxy service
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+
+        console.log('Using proxy URL:', proxyUrl);
 
         const response = await fetch(proxyUrl);
-        const data = await response.json();
 
-        if (!data.contents) {
-            throw new Error('Failed to fetch recipe content');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const html = data.contents;
+        const html = await response.text();
+
+        console.log('HTML fetched, length:', html.length);
 
         // Try to extract recipe data
         const recipe = extractRecipeData(html, url);
 
+        if (!recipe) {
+            throw new Error('Could not extract recipe data from this URL');
+        }
+
+        console.log('Recipe extracted:', recipe.name);
+        console.log('Found ingredients:', recipe.ingredients?.length || 0);
+
         return recipe;
     } catch (error) {
         console.error('Error fetching recipe:', error);
-        throw new Error('Failed to import recipe. Make sure the URL is accessible and contains a recipe.');
+        throw new Error('Failed to import recipe. The site may be blocking access or the URL may be invalid.');
     }
 }
 
@@ -63,8 +73,11 @@ function extractJsonLd(html) {
         const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
 
         if (!jsonLdMatches) {
+            console.log('No JSON-LD found in HTML');
             return null;
         }
+
+        console.log('Found', jsonLdMatches.length, 'JSON-LD blocks');
 
         // Look for Recipe schema
         for (const match of jsonLdMatches) {
@@ -85,6 +98,7 @@ function extractJsonLd(html) {
                 }
 
                 if (recipe) {
+                    console.log('Found Recipe schema, parsing...');
                     return parseJsonLdRecipe(recipe);
                 }
             }
