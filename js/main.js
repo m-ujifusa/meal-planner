@@ -44,8 +44,22 @@ class App {
         // Set up navigation
         this.setupNavigation();
 
-        // Check for stored credentials
-        const credentials = auth.getStoredCredentials();
+        // Check for credentials in config.js first, then localStorage
+        let credentials = { clientId: null, spreadsheetId: null };
+
+        // Priority 1: config.js (if exists)
+        if (window.APP_CONFIG && window.APP_CONFIG.clientId && window.APP_CONFIG.spreadsheetId) {
+            console.log('Using credentials from config.js');
+            credentials.clientId = window.APP_CONFIG.clientId;
+            credentials.spreadsheetId = window.APP_CONFIG.spreadsheetId;
+        } else {
+            // Priority 2: localStorage (from previous login)
+            const stored = auth.getStoredCredentials();
+            if (stored.clientId && stored.spreadsheetId) {
+                console.log('Using credentials from localStorage');
+                credentials = stored;
+            }
+        }
 
         if (credentials.clientId && credentials.spreadsheetId) {
             // Pre-fill the form
@@ -54,6 +68,7 @@ class App {
 
             // Try to auto-authenticate
             try {
+                console.log('Auto-authenticating...');
                 showLoading();
                 const initialized = await auth.init(credentials.clientId, credentials.spreadsheetId);
 
@@ -62,10 +77,14 @@ class App {
                 }
             } catch (error) {
                 console.error('Auto-auth failed:', error);
+                showError('Auto-authentication failed. Please sign in manually.');
             } finally {
                 hideLoading();
             }
+        } else {
+            console.log('No credentials found. Please enter them manually.');
         }
+
 
         // Set up sign-in button
         document.getElementById('signin-button').addEventListener('click', async () => {

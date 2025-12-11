@@ -1,0 +1,15 @@
+# Configuration file with personal credentials
+config.js
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp

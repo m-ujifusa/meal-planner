@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Script Loading Test</title>
+</head>
+<body>
+    <h1>Testing Google API Scripts</h1>
+    <div id="status"></div>
+
+    <!-- Google API Client Library -->
+    <script src="https://apis.google.com/js/api.js"></script>
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script>
+        const status = document.getElementById('status');
+
+        function updateStatus(message) {
+            console.log(message);
+            const p = document.createElement('p');
+            p.textContent = message;
+            status.appendChild(p);
+        }
+
+        // Check if scripts loaded
+        setTimeout(() => {
+            updateStatus('Checking after 2 seconds...');
+
+            if (typeof gapi !== 'undefined') {
+                updateStatus('✅ gapi is loaded');
+            } else {
+                updateStatus('❌ gapi is NOT loaded');
+            }
+
+            if (typeof google !== 'undefined' && google.accounts) {
+                updateStatus('✅ Google Identity Services is loaded');
+            } else {
+                updateStatus('❌ Google Identity Services is NOT loaded');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

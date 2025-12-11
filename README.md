@@ -61,24 +61,38 @@ A mobile-first, client-side web application for managing weekly dinner planning,
    cd meal-planner
    ```
 
-2. **Follow the setup guide**
+2. **Set up your configuration** (Optional but recommended)
+   ```bash
+   # Copy the example config file
+   cp config.example.js config.js
+
+   # Edit config.js and add your credentials
+   # This file is gitignored and won't be committed
+   ```
+
+3. **Follow the setup guide**
    - See [Setup Guide](docs/setup-guide.md) for detailed instructions
    - You'll need to:
      - Create a Google Spreadsheet
      - Set up Google OAuth credentials
+     - Add your credentials to `config.js`
      - Deploy to GitHub Pages
 
-3. **Start using**
-   - Open your deployed site
-   - Enter your Spreadsheet ID and Client ID
-   - Sign in with Google
+4. **Start using**
+   - Open your deployed site (it will auto-load credentials from `config.js`)
+   - Sign in with Google when prompted
    - Start planning meals!
+
+   **Note**: If you didn't create `config.js`, you can enter credentials manually each time.
 
 ## Project Structure
 
 ```
 meal-planner/
 ├── index.html              # Main application shell
+├── config.example.js       # Template configuration file
+├── config.js              # Your credentials (gitignored)
+├── .gitignore             # Excludes config.js
 ├── css/
 │   └── styles.css         # Custom styles and print CSS
 ├── js/
