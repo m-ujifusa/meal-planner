@@ -12,9 +12,18 @@ export async function importRecipeFromUrl(url) {
     try {
         console.log('Fetching recipe from:', url);
 
-        // Fetch the page content
-        const response = await fetch(url);
-        const html = await response.text();
+        // Use CORS proxy to bypass browser restrictions
+        // Using AllOrigins as a free CORS proxy service
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+
+        if (!data.contents) {
+            throw new Error('Failed to fetch recipe content');
+        }
+
+        const html = data.contents;
 
         // Try to extract recipe data
         const recipe = extractRecipeData(html, url);
