@@ -62,7 +62,10 @@ class App {
         }
 
         if (credentials.clientId && credentials.spreadsheetId) {
-            // Pre-fill the form
+            // Hide auth screen immediately since we have credentials
+            document.getElementById('auth-screen').style.display = 'none';
+
+            // Pre-fill the form (in case user signs out and returns)
             document.getElementById('client-id').value = credentials.clientId;
             document.getElementById('spreadsheet-id').value = credentials.spreadsheetId;
 
@@ -74,12 +77,18 @@ class App {
 
                 if (initialized) {
                     auth.requestAccessToken();
+                } else {
+                    // Failed to initialize, show auth screen again
+                    document.getElementById('auth-screen').style.display = 'flex';
+                    hideLoading();
+                    showError('Failed to initialize. Please try again.');
                 }
             } catch (error) {
                 console.error('Auto-auth failed:', error);
-                showError('Auto-authentication failed. Please sign in manually.');
-            } finally {
+                // Show auth screen again on error
+                document.getElementById('auth-screen').style.display = 'flex';
                 hideLoading();
+                showError('Auto-authentication failed. Please sign in manually.');
             }
         } else {
             console.log('No credentials found. Please enter them manually.');

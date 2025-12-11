@@ -61,14 +61,15 @@ A mobile-first, client-side web application for managing weekly dinner planning,
    cd meal-planner
    ```
 
-2. **Set up your configuration** (Optional but recommended)
-   ```bash
-   # Copy the example config file
-   cp config.example.js config.js
+2. **Configure your credentials**
 
-   # Edit config.js and add your credentials
-   # This file is gitignored and won't be committed
-   ```
+   Your credentials are stored in `config.public.js` which is committed to the repo.
+
+   **Why is this safe?**
+   - OAuth Client ID is designed to be public
+   - Spreadsheet ID is not sensitive
+   - Real security comes from Google OAuth - users must grant permission
+   - Even if someone knows your IDs, they can't access your data without authorization
 
 3. **Follow the setup guide**
    - See [Setup Guide](docs/setup-guide.md) for detailed instructions
@@ -79,11 +80,15 @@ A mobile-first, client-side web application for managing weekly dinner planning,
      - Deploy to GitHub Pages
 
 4. **Start using**
-   - Open your deployed site (it will auto-load credentials from `config.js`)
-   - Sign in with Google when prompted
+   - Open your deployed site
+   - **First time only:** Click "Allow" when Google asks for permission
+   - **Every subsequent visit:** App loads automatically (credentials and auth token are saved)
    - Start planning meals!
 
-   **Note**: If you didn't create `config.js`, you can enter credentials manually each time.
+   **Authentication Flow:**
+   - Credentials (Client ID, Spreadsheet ID) → Saved in `localStorage` (persists forever)
+   - Access Token → Saved in `localStorage` (persists until you sign out)
+   - You only need to click "Allow" on Google popup once per browser
 
 ## Project Structure
 

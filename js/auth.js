@@ -100,7 +100,8 @@ class Auth {
                                     return;
                                 }
                                 this.accessToken = response.access_token;
-                                sessionStorage.setItem('access_token', this.accessToken);
+                                // Store token in localStorage for persistence across sessions
+                                localStorage.setItem('access_token', this.accessToken);
                                 this.handleAuthSuccess();
                             },
                         });
@@ -139,8 +140,8 @@ class Auth {
             return;
         }
 
-        // Check if we already have a valid token in session storage
-        const storedToken = sessionStorage.getItem('access_token');
+        // Check if we already have a valid token in localStorage
+        const storedToken = localStorage.getItem('access_token');
         if (storedToken) {
             console.log('Found stored token, verifying...');
             this.accessToken = storedToken;
@@ -213,7 +214,7 @@ class Auth {
         }
 
         this.accessToken = null;
-        sessionStorage.removeItem('access_token');
+        localStorage.removeItem('access_token');
         gapi.client.setToken(null);
 
         // Dispatch sign out event
