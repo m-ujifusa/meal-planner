@@ -1,9 +1,9 @@
 /**
  * Local state management
- * Caches data from Google Sheets for performance
+ * Caches data from Firestore for performance
  */
 
-import { sheets } from './sheets.js';
+import { db } from './firestore.js';
 
 class Store {
     constructor() {
@@ -17,10 +17,13 @@ class Store {
     }
 
     /**
-     * Load all data from Google Sheets
+     * Load all data from Firestore
      */
     async loadAll() {
         try {
+            // Initialize Firestore
+            db.init();
+
             await Promise.all([
                 this.loadRecipes(),
                 this.loadIngredients(),
@@ -39,7 +42,7 @@ class Store {
      * Load recipes
      */
     async loadRecipes() {
-        this.recipes = await sheets.readAsObjects('Recipes');
+        this.recipes = await db.read('recipes');
         this.emit('recipes-updated', this.recipes);
         return this.recipes;
     }
@@ -48,7 +51,7 @@ class Store {
      * Load ingredients
      */
     async loadIngredients() {
-        this.ingredients = await sheets.readAsObjects('Ingredients');
+        this.ingredients = await db.read('ingredients');
         this.emit('ingredients-updated', this.ingredients);
         return this.ingredients;
     }
@@ -57,7 +60,7 @@ class Store {
      * Load inventory
      */
     async loadInventory() {
-        this.inventory = await sheets.readAsObjects('Inventory');
+        this.inventory = await db.read('inventory');
         this.emit('inventory-updated', this.inventory);
         return this.inventory;
     }
@@ -66,7 +69,7 @@ class Store {
      * Load meal plan
      */
     async loadMealPlan() {
-        this.mealPlan = await sheets.readAsObjects('MealPlan');
+        this.mealPlan = await db.read('meal_plans');
         this.emit('mealplan-updated', this.mealPlan);
         return this.mealPlan;
     }
@@ -75,7 +78,7 @@ class Store {
      * Load shopping list
      */
     async loadShoppingList() {
-        this.shoppingList = await sheets.readAsObjects('ShoppingList');
+        this.shoppingList = await db.read('shopping_list');
         this.emit('shoppinglist-updated', this.shoppingList);
         return this.shoppingList;
     }
@@ -84,7 +87,7 @@ class Store {
      * Load price history
      */
     async loadPriceHistory() {
-        this.priceHistory = await sheets.readAsObjects('PriceHistory');
+        this.priceHistory = await db.read('price_history');
         this.emit('pricehistory-updated', this.priceHistory);
         return this.priceHistory;
     }
@@ -109,20 +112,20 @@ class Store {
      * Add a new recipe
      */
     async addRecipe(recipe) {
-        const id = sheets.generateId('r');
-        const newRecipe = { id, ...recipe };
+        const id = db.generateId('r');
+        const newRecipe = { ...recipe };
 
-        await sheets.appendObjects('Recipes', [newRecipe]);
+        await db.create('recipes', newRecipe, id);
         await this.loadRecipes();
 
-        return newRecipe;
+        return { id, ...newRecipe };
     }
 
     /**
      * Update a recipe
      */
     async updateRecipe(id, updates) {
-        await sheets.updateRow('Recipes', 'id', id, updates);
+        await db.update('recipes', id, updates);
         await this.loadRecipes();
     }
 
@@ -131,15 +134,13 @@ class Store {
      */
     async deleteRecipe(id) {
         // Delete recipe
-        await sheets.deleteRow('Recipes', 'id', id);
+        await db.delete('recipes', id);
 
         // Delete associated ingredients
-        const recipeIngredients = this.ingredients.filter(i => i.recipe_id === id);
-        for (const ingredient of recipeIngredients) {
-            await this.deleteIngredient(ingredient.recipe_id, ingredient.item);
-        }
+        await db.deleteWhere('ingredients', [['recipe_id', '==', id]]);
 
         await this.loadRecipes();
+        await this.loadIngredients();
     }
 
     // === Ingredient Methods ===
@@ -155,7 +156,8 @@ class Store {
      * Add ingredient to recipe
      */
     async addIngredient(ingredient) {
-        await sheets.appendObjects('Ingredients', [ingredient]);
+        const id = db.generateId('ing');
+        await db.create('ingredients', ingredient, id);
         await this.loadIngredients();
     }
 
@@ -163,16 +165,16 @@ class Store {
      * Update ingredient
      */
     async updateIngredient(recipeId, item, updates) {
-        const ingredients = await sheets.readAsObjects('Ingredients');
-        const index = ingredients.findIndex(i => i.recipe_id === recipeId && i.item === item);
+        const ingredients = await db.query('ingredients', [
+            ['recipe_id', '==', recipeId],
+            ['item', '==', item]
+        ]);
 
-        if (index === -1) {
+        if (ingredients.length === 0) {
             throw new Error('Ingredient not found');
         }
 
-        // Update by rewriting all ingredients
-        ingredients[index] = { ...ingredients[index], ...updates };
-        await sheets.writeObjects('Ingredients', ingredients);
+        await db.update('ingredients', ingredients[0].id, updates);
         await this.loadIngredients();
     }
 
@@ -180,9 +182,10 @@ class Store {
      * Delete ingredient
      */
     async deleteIngredient(recipeId, item) {
-        const ingredients = await sheets.readAsObjects('Ingredients');
-        const filtered = ingredients.filter(i => !(i.recipe_id === recipeId && i.item === item));
-        await sheets.writeObjects('Ingredients', filtered);
+        await db.deleteWhere('ingredients', [
+            ['recipe_id', '==', recipeId],
+            ['item', '==', item]
+        ]);
         await this.loadIngredients();
     }
 
@@ -191,13 +194,20 @@ class Store {
      */
     async saveRecipeIngredients(recipeId, newIngredients) {
         // Remove old ingredients
-        const allIngredients = await sheets.readAsObjects('Ingredients');
-        const otherIngredients = allIngredients.filter(i => i.recipe_id !== recipeId);
+        await db.deleteWhere('ingredients', [['recipe_id', '==', recipeId]]);
 
         // Add new ingredients
-        const ingredientsToSave = [...otherIngredients, ...newIngredients];
+        const operations = newIngredients.map(ingredient => ({
+            type: 'set',
+            collection: 'ingredients',
+            id: db.generateId('ing'),
+            data: ingredient
+        }));
 
-        await sheets.writeObjects('Ingredients', ingredientsToSave);
+        if (operations.length > 0) {
+            await db.batchWrite(operations);
+        }
+
         await this.loadIngredients();
     }
 
@@ -221,7 +231,8 @@ class Store {
      * Add inventory item
      */
     async addInventoryItem(item) {
-        await sheets.appendObjects('Inventory', [item]);
+        const id = db.generateId('inv');
+        await db.create('inventory', item, id);
         await this.loadInventory();
     }
 
@@ -229,15 +240,19 @@ class Store {
      * Update inventory item
      */
     async updateInventoryItem(itemName, updates) {
-        await sheets.updateRow('Inventory', 'item', itemName, updates);
-        await this.loadInventory();
+        const items = await db.query('inventory', [['item', '==', itemName]]);
+
+        if (items.length > 0) {
+            await db.update('inventory', items[0].id, updates);
+            await this.loadInventory();
+        }
     }
 
     /**
      * Delete inventory item
      */
     async deleteInventoryItem(itemName) {
-        await sheets.deleteRow('Inventory', 'item', itemName);
+        await db.deleteWhere('inventory', [['item', '==', itemName]]);
         await this.loadInventory();
     }
 
@@ -254,7 +269,8 @@ class Store {
      * Add meal to plan
      */
     async addMealToPlan(meal) {
-        await sheets.appendObjects('MealPlan', [meal]);
+        const id = db.generateId('meal');
+        await db.create('meal_plans', meal, id);
         await this.loadMealPlan();
     }
 
@@ -262,16 +278,17 @@ class Store {
      * Update meal in plan
      */
     async updateMealInPlan(weekStart, day, updates) {
-        const meals = await sheets.readAsObjects('MealPlan');
-        const index = meals.findIndex(m => m.week_start === weekStart && m.day === day);
+        const meals = await db.query('meal_plans', [
+            ['week_start', '==', weekStart],
+            ['day', '==', day]
+        ]);
 
-        if (index === -1) {
+        if (meals.length === 0) {
             // Add new meal
             await this.addMealToPlan({ week_start: weekStart, day, ...updates });
         } else {
             // Update existing
-            meals[index] = { ...meals[index], ...updates };
-            await sheets.writeObjects('MealPlan', meals);
+            await db.update('meal_plans', meals[0].id, updates);
             await this.loadMealPlan();
         }
     }
@@ -280,9 +297,10 @@ class Store {
      * Clear meal from plan
      */
     async clearMealFromPlan(weekStart, day) {
-        const meals = await sheets.readAsObjects('MealPlan');
-        const filtered = meals.filter(m => !(m.week_start === weekStart && m.day === day));
-        await sheets.writeObjects('MealPlan', filtered);
+        await db.deleteWhere('meal_plans', [
+            ['week_start', '==', weekStart],
+            ['day', '==', day]
+        ]);
         await this.loadMealPlan();
     }
 
@@ -290,9 +308,7 @@ class Store {
      * Clear entire week
      */
     async clearWeek(weekStart) {
-        const meals = await sheets.readAsObjects('MealPlan');
-        const filtered = meals.filter(m => m.week_start !== weekStart);
-        await sheets.writeObjects('MealPlan', filtered);
+        await db.deleteWhere('meal_plans', [['week_start', '==', weekStart]]);
         await this.loadMealPlan();
     }
 
@@ -370,11 +386,20 @@ class Store {
         }
 
         // Clear old shopping list for this week
-        const allShoppingItems = await sheets.readAsObjects('ShoppingList');
-        const otherWeeks = allShoppingItems.filter(s => s.week_start !== weekStart);
-        const newList = [...otherWeeks, ...shoppingItems];
+        await db.deleteWhere('shopping_list', [['week_start', '==', weekStart]]);
 
-        await sheets.writeObjects('ShoppingList', newList);
+        // Add new shopping items
+        const operations = shoppingItems.map(item => ({
+            type: 'set',
+            collection: 'shopping_list',
+            id: db.generateId('shop'),
+            data: item
+        }));
+
+        if (operations.length > 0) {
+            await db.batchWrite(operations);
+        }
+
         await this.loadShoppingList();
 
         return shoppingItems;
@@ -384,12 +409,13 @@ class Store {
      * Update shopping list item
      */
     async updateShoppingItem(weekStart, item, updates) {
-        const items = await sheets.readAsObjects('ShoppingList');
-        const index = items.findIndex(s => s.week_start === weekStart && s.item === item);
+        const items = await db.query('shopping_list', [
+            ['week_start', '==', weekStart],
+            ['item', '==', item]
+        ]);
 
-        if (index !== -1) {
-            items[index] = { ...items[index], ...updates };
-            await sheets.writeObjects('ShoppingList', items);
+        if (items.length > 0) {
+            await db.update('shopping_list', items[0].id, updates);
             await this.loadShoppingList();
         }
     }
@@ -398,7 +424,8 @@ class Store {
      * Add manual shopping item
      */
     async addManualShoppingItem(item) {
-        await sheets.appendObjects('ShoppingList', [{ ...item, manual: 'TRUE' }]);
+        const id = db.generateId('shop');
+        await db.create('shopping_list', { ...item, manual: 'TRUE' }, id);
         await this.loadShoppingList();
     }
 
@@ -410,14 +437,22 @@ class Store {
     async logPrices(weekStart, prices) {
         const today = new Date().toISOString().split('T')[0];
 
-        const priceEntries = prices.map(p => ({
-            date: today,
-            item: p.item,
-            price: p.price,
-            store: p.store || '',
+        const operations = prices.map(p => ({
+            type: 'set',
+            collection: 'price_history',
+            id: db.generateId('price'),
+            data: {
+                date: today,
+                item: p.item,
+                price: p.price,
+                store: p.store || ''
+            }
         }));
 
-        await sheets.appendObjects('PriceHistory', priceEntries);
+        if (operations.length > 0) {
+            await db.batchWrite(operations);
+        }
+
         await this.loadPriceHistory();
     }
 

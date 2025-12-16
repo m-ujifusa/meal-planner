@@ -1,5 +1,6 @@
-# Configuration file with personal credentials
+# Configuration files with personal credentials
 config.js
+firebase-config.js
 
 # macOS
 .DS_Store

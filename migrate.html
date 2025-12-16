@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Migration - Meal Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Sheets API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">Data Migration Tool</h1>
+            <p class="text-gray-600 mb-6">
+                This tool will migrate your data from Google Sheets to Firebase Firestore.
+                This is a one-time operation needed to upgrade to the new version.
+            </p>
+
+            <!-- Instructions -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h2 class="font-semibold text-blue-900 mb-2">Instructions:</h2>
+                <ol class="list-decimal list-inside space-y-1 text-blue-800 text-sm">
+                    <li>Enter your Google Sheets credentials below</li>
+                    <li>Click "Sign in with Google" and authorize access</li>
+                    <li>Click "Migrate Data" to start the migration</li>
+                    <li>Wait for the migration to complete</li>
+                    <li>Once complete, you can use the main app with Firebase!</li>
+                </ol>
+            </div>
+
+            <!-- Step 1: Google Sheets Auth -->
+            <div id="step1" class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Step 1: Connect to Google Sheets</h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="client-id" class="block text-sm font-medium text-gray-700 mb-1">
+                            Google OAuth Client ID
+                        </label>
+                        <input
+                            type="text"
+                            id="client-id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Your Google OAuth Client ID"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="spreadsheet-id" class="block text-sm font-medium text-gray-700 mb-1">
+                            Spreadsheet ID
+                        </label>
+                        <input
+                            type="text"
+                            id="spreadsheet-id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Your Google Spreadsheet ID"
+                        >
+                    </div>
+
+                    <button
+                        id="sheets-signin-button"
+                        class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Sign in with Google (Sheets Access)
+                    </button>
+                </div>
+
+                <div id="sheets-status" class="mt-4 hidden">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <p class="text-green-800 font-medium">✓ Connected to Google Sheets</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Firebase Auth -->
+            <div id="step2" class="mb-6 opacity-50 pointer-events-none">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Step 2: Sign in to Firebase</h2>
+
+                <button
+                    id="firebase-signin-button"
+                    class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                >
+                    Sign in with Google (Firebase)
+                </button>
+
+                <div id="firebase-status" class="mt-4 hidden">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <p class="text-green-800 font-medium">✓ Signed in to Firebase</p>
+                        <p id="firebase-email" class="text-green-700 text-sm mt-1"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Migrate -->
+            <div id="step3" class="mb-6 opacity-50 pointer-events-none">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Step 3: Migrate Data</h2>
+
+                <button
+                    id="migrate-button"
+                    class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                >
+                    Start Migration
+                </button>
+            </div>
+
+            <!-- Progress -->
+            <div id="progress" class="hidden">
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <h3 class="font-semibold text-gray-900 mb-2">Migration Progress:</h3>
+                    <div id="progress-log" class="space-y-1 text-sm text-gray-700 font-mono"></div>
+                </div>
+            </div>
+
+            <!-- Success -->
+            <div id="success" class="hidden">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-green-900 mb-2">✓ Migration Complete!</h3>
+                    <p class="text-green-800 mb-4">
+                        Your data has been successfully migrated to Firebase Firestore.
+                    </p>
+                    <a
+                        href="index.html"
+                        class="inline-block bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                    >
+                        Go to App
+                    </a>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div id="error" class="hidden">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 class="font-bold text-red-900 mb-2">Error</h3>
+                    <p id="error-message" class="text-red-800"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import legacy auth for Sheets
+        import { auth as sheetsAuth } from './js/auth.js';
+        import { sheets } from './js/sheets.js';
+
+        let firebaseAuth = null;
+        let firestore = null;
+        let userId = null;
+
+        // Initialize Firebase
+        async function initFirebase() {
+            return new Promise((resolve, reject) => {
+                let attempts = 0;
+                const tryLoad = () => {
+                    if (typeof firebase !== 'undefined') {
+                        firebaseAuth = firebase.auth();
+                        firestore = firebase.firestore();
+                        resolve();
+                    } else {
+                        attempts++;
+                        if (attempts >= 50) {
+                            reject(new Error('Firebase failed to load'));
+                        } else {
+                            setTimeout(tryLoad, 100);
+                        }
+                    }
+                };
+                tryLoad();
+            });
+        }
+
+        // Log progress
+        function log(message) {
+            const progressLog = document.getElementById('progress-log');
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            progressLog.appendChild(entry);
+            progressLog.scrollTop = progressLog.scrollHeight;
+        }
+
+        // Show error
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error').classList.remove('hidden');
+        }
+
+        // Step 1: Google Sheets Sign In
+        document.getElementById('sheets-signin-button').addEventListener('click', async () => {
+            const clientId = document.getElementById('client-id').value.trim();
+            const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
+
+            if (!clientId || !spreadsheetId) {
+                showError('Please enter both Client ID and Spreadsheet ID');
+                return;
+            }
+
+            try {
+                const initialized = await sheetsAuth.init(clientId, spreadsheetId);
+                if (initialized) {
+                    sheetsAuth.requestAccessToken();
+                }
+            } catch (error) {
+                showError('Failed to initialize Google Sheets: ' + error.message);
+            }
+        });
+
+        // Listen for Sheets auth success
+        window.addEventListener('auth-success', (e) => {
+            sheets.init(e.detail.spreadsheetId);
+            document.getElementById('sheets-status').classList.remove('hidden');
+            document.getElementById('step2').classList.remove('opacity-50', 'pointer-events-none');
+        });
+
+        // Step 2: Firebase Sign In
+        await initFirebase();
+
+        document.getElementById('firebase-signin-button').addEventListener('click', async () => {
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                const result = await firebaseAuth.signInWithPopup(provider);
+                userId = result.user.uid;
+
+                document.getElementById('firebase-status').classList.remove('hidden');
+                document.getElementById('firebase-email').textContent = result.user.email;
+                document.getElementById('step3').classList.remove('opacity-50', 'pointer-events-none');
+            } catch (error) {
+                showError('Firebase sign-in failed: ' + error.message);
+            }
+        });
+
+        // Step 3: Migrate Data
+        document.getElementById('migrate-button').addEventListener('click', async () => {
+            document.getElementById('progress').classList.remove('hidden');
+            document.getElementById('migrate-button').disabled = true;
+
+            try {
+                log('Starting migration...');
+
+                // Helper to get user collection
+                const getUserCollection = (collectionName) => {
+                    return firestore.collection('users').doc(userId).collection(collectionName);
+                };
+
+                // Migrate Recipes
+                log('Migrating recipes...');
+                const recipes = await sheets.readAsObjects('Recipes');
+                for (const recipe of recipes) {
+                    await getUserCollection('recipes').doc(recipe.id).set({
+                        ...recipe,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                log(`✓ Migrated ${recipes.length} recipes`);
+
+                // Migrate Ingredients
+                log('Migrating ingredients...');
+                const ingredients = await sheets.readAsObjects('Ingredients');
+                for (const ingredient of ingredients) {
+                    const id = `ing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await getUserCollection('ingredients').doc(id).set({
+                        ...ingredient,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                log(`✓ Migrated ${ingredients.length} ingredients`);
+
+                // Migrate Inventory
+                log('Migrating inventory...');
+                const inventory = await sheets.readAsObjects('Inventory');
+                for (const item of inventory) {
+                    const id = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await getUserCollection('inventory').doc(id).set({
+                        ...item,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                log(`✓ Migrated ${inventory.length} inventory items`);
+
+                // Migrate Meal Plans
+                log('Migrating meal plans...');
+                const mealPlans = await sheets.readAsObjects('MealPlan');
+                for (const meal of mealPlans) {
+                    const id = `meal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await getUserCollection('meal_plans').doc(id).set({
+                        ...meal,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                log(`✓ Migrated ${mealPlans.length} meal plans`);
+
+                // Migrate Shopping List
+                log('Migrating shopping list...');
+                const shoppingList = await sheets.readAsObjects('ShoppingList');
+                for (const item of shoppingList) {
+                    const id = `shop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await getUserCollection('shopping_list').doc(id).set({
+                        ...item,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                log(`✓ Migrated ${shoppingList.length} shopping items`);
+
+                // Migrate Price History
+                log('Migrating price history...');
+                const priceHistory = await sheets.readAsObjects('PriceHistory');
+                for (const price of priceHistory) {
+                    const id = `price_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await getUserCollection('price_history').doc(id).set({
+                        ...price,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                log(`✓ Migrated ${priceHistory.length} price history entries`);
+
+                log('Migration complete!');
+                document.getElementById('success').classList.remove('hidden');
+
+            } catch (error) {
+                log('ERROR: ' + error.message);
+                showError('Migration failed: ' + error.message);
+                document.getElementById('migrate-button').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

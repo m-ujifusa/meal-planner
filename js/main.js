@@ -3,8 +3,7 @@
  * Handles routing, initialization, and authentication flow
  */
 
-import { auth } from './auth.js';
-import { sheets } from './sheets.js';
+import { auth } from './firebase-auth.js';
 import { store } from './store.js';
 import { showLoading, hideLoading, showError } from './utils/format.js';
 
@@ -44,90 +43,33 @@ class App {
         // Set up navigation
         this.setupNavigation();
 
-        // Check for credentials in config.js first, then localStorage
-        let credentials = { clientId: null, spreadsheetId: null };
+        // Initialize Firebase Auth
+        try {
+            console.log('Initializing Firebase Auth...');
+            showLoading();
+            const initialized = await auth.init();
 
-        // Priority 1: config.js (if exists)
-        if (window.APP_CONFIG && window.APP_CONFIG.clientId && window.APP_CONFIG.spreadsheetId) {
-            console.log('Using credentials from config.js');
-            credentials.clientId = window.APP_CONFIG.clientId;
-            credentials.spreadsheetId = window.APP_CONFIG.spreadsheetId;
-        } else {
-            // Priority 2: localStorage (from previous login)
-            const stored = auth.getStoredCredentials();
-            if (stored.clientId && stored.spreadsheetId) {
-                console.log('Using credentials from localStorage');
-                credentials = stored;
-            }
-        }
-
-        if (credentials.clientId && credentials.spreadsheetId) {
-            // Hide auth screen immediately since we have credentials
-            document.getElementById('auth-screen').style.display = 'none';
-
-            // Pre-fill the form (in case user signs out and returns)
-            document.getElementById('client-id').value = credentials.clientId;
-            document.getElementById('spreadsheet-id').value = credentials.spreadsheetId;
-
-            // Try to auto-authenticate
-            try {
-                console.log('Auto-authenticating...');
-                showLoading();
-                const initialized = await auth.init(credentials.clientId, credentials.spreadsheetId);
-
-                if (initialized) {
-                    auth.requestAccessToken();
-                } else {
-                    // Failed to initialize, show auth screen again
-                    document.getElementById('auth-screen').style.display = 'flex';
-                    hideLoading();
-                    showError('Failed to initialize. Please try again.');
-                }
-            } catch (error) {
-                console.error('Auto-auth failed:', error);
-                // Show auth screen again on error
-                document.getElementById('auth-screen').style.display = 'flex';
+            if (!initialized) {
                 hideLoading();
-                showError('Auto-authentication failed. Please sign in manually.');
+                showError('Failed to initialize Firebase. Please check your firebase-config.js file.');
+                return;
             }
-        } else {
-            console.log('No credentials found. Please enter them manually.');
-        }
 
+            hideLoading();
+            console.log('Firebase Auth ready');
+
+            // Check if user is already signed in
+            // The onAuthStateChanged listener will handle the UI updates
+        } catch (error) {
+            console.error('Initialization error:', error);
+            hideLoading();
+            showError('Failed to initialize: ' + error.message);
+        }
 
         // Set up sign-in button
         document.getElementById('signin-button').addEventListener('click', async () => {
             console.log('Sign-in button clicked');
-            const clientId = document.getElementById('client-id').value.trim();
-            const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
-
-            console.log('Client ID:', clientId ? 'provided' : 'missing');
-            console.log('Spreadsheet ID:', spreadsheetId ? 'provided' : 'missing');
-
-            if (!clientId || !spreadsheetId) {
-                showError('Please enter both Client ID and Spreadsheet ID');
-                return;
-            }
-
-            try {
-                console.log('Starting authentication initialization...');
-                showLoading();
-                const initialized = await auth.init(clientId, spreadsheetId);
-
-                console.log('Authentication initialized:', initialized);
-
-                if (initialized) {
-                    console.log('Requesting access token...');
-                    auth.requestAccessToken();
-                } else {
-                    showError('Failed to initialize authentication');
-                }
-            } catch (error) {
-                console.error('Authentication error:', error);
-                showError('Authentication error: ' + error.message);
-            } finally {
-                hideLoading();
-            }
+            await auth.signInWithGoogle();
         });
 
         // Set up sign-out button
@@ -144,10 +86,9 @@ class App {
             try {
                 showLoading();
 
-                // Initialize sheets API
-                sheets.init(e.detail.spreadsheetId);
+                console.log('User signed in:', e.detail.email);
 
-                // Load all data
+                // Load all data from Firestore
                 await store.loadAll();
 
                 // Hide auth screen, show app
@@ -161,8 +102,7 @@ class App {
                 hideLoading();
             } catch (error) {
                 console.error('Error loading data:', error);
-                showError('Failed to load data from Google Sheets. Please check your spreadsheet setup.');
-                auth.signOut();
+                showError('Failed to load data from Firestore. Please try again.');
                 hideLoading();
             }
         });
